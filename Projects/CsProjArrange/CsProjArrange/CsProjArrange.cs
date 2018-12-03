@@ -61,7 +61,7 @@ namespace CsProjArrange
         /// <param name="stickyElementNames">A list of element names which should be stuck to the top when sorting the nodes. Defaults to the values: Import, Task, PropertyGroup, ItemGroup, Target, Configuration, Platform, ProjectReference, Reference, Compile, Folder, Content, None, When, and Otherwise.</param>
         /// <param name="sortAttributes">A list of attributes which should be used to sort the elements after they have been sorted by name. Defaults to the values: Include.</param>
         /// <param name="options">Options for the arrange.</param>
-        public void Arrange(string inputFile, string outputFile)
+        public void Arrange(string inputFile, string outputFile, bool backupFile = true)
         {
             // Load the document.
             XDocument input;
@@ -76,7 +76,8 @@ namespace CsProjArrange
 
             _csProjArrangeStrategy.Arrange(input);
 
-            BackupInputFile(inputFile, outputFile);
+			if (backupFile)
+				BackupInputFile(inputFile, outputFile);
 
             WriteOutput(input, outputFile);
         }

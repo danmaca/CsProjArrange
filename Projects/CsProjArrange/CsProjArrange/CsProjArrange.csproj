@@ -62,6 +62,7 @@
     <Compile Include="CsProjArrange.cs" />
     <Compile Include="CsProjArrangeConsole.cs" />
     <Compile Include="CsProjArrangeStrategy.cs" />
+    <Compile Include="CustomSortingProcessor.cs" />
     <Compile Include="Mono.Options\Options.cs" />
     <Compile Include="NodeNameComparer.cs" />
     <Compile Include="Program.cs" />
