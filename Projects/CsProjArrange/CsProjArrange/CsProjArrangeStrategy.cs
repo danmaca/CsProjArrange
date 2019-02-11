@@ -97,7 +97,9 @@ namespace CsProjArrange
 
         public void Arrange(XDocument input)
         {
-            _attributeKeyComparer = CreateAttributeKeyComparer(_sortAttributes);
+				new InputDataModificator().ModifyInputData(input);
+
+				_attributeKeyComparer = CreateAttributeKeyComparer(_sortAttributes);
             _nodeNameComparer = new NodeNameComparer(_stickyElementNames);
 
             input.Root.ReplaceNodes(
