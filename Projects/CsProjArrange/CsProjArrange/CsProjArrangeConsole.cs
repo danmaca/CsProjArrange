@@ -39,8 +39,8 @@ namespace CsProjArrange
 			IEnumerable<string> stickyElementNames = null;
 			IEnumerable<string> keepOrderElementNames = null;
 			IEnumerable<string> sortAttributes = null;
-			bool searchRecursive = false;
-			bool updateRecursive = false;
+			bool xamarinOnly = false;
+			bool checkoutedOnly = false;
 			bool usePredefinedFolders = false;
 			CsProjArrange.ArrangeOptions options = CsProjArrange.ArrangeOptions.All;
 
@@ -52,8 +52,8 @@ namespace CsProjArrange
 					 { "k|keeporder=", "Comma separated list of element names where children should not be sorted.", x => keepOrderElementNames = x.Split(',') },
 					 { "a|attributes=", "Comma separated list of attributes to sort on.", x => sortAttributes = x.Split(',') },
 					 { "p|options=", "Specify options", x => Enum.TryParse<CsProjArrange.ArrangeOptions>(x, out options) },
-					 { "recursive", "search recursive csprojs.", x => searchRecursive = x != null },
-					 { "update", "update recursive csprojs which are modified.", x => updateRecursive = x != null },
+					 { "xamarinOnly", "search recursive csprojs.", x => xamarinOnly = x != null },
+					 { "checkoutedOnly", "update recursive csprojs which are modified.", x => checkoutedOnly = x != null },
 					 { "usePredefinedFolders", "update recursive csprojs which are modified.", x => usePredefinedFolders = x != null },
 				};
 			List<string> extra;
@@ -81,19 +81,19 @@ namespace CsProjArrange
 
 			try
 			{
-				if (searchRecursive || updateRecursive)
+				//if (xamarinOnly || checkoutedOnly)
 				{
-					new CustomSortingProcessor().ProcessSorting(inputFile, searchRecursive, updateRecursive, usePredefinedFolders, (filePath, arrangeOptions) =>
+					new CustomSortingProcessor().ProcessSorting(inputFile, xamarinOnly, checkoutedOnly, usePredefinedFolders, (filePath, targetFilePath, arrangeOptions) =>
 					{
 						var csProjArrange = CreateCsProjArrange(stickyElementNames, keepOrderElementNames, sortAttributes, arrangeOptions);
-						csProjArrange.Arrange(filePath, filePath, backupFile: false);
+						csProjArrange.Arrange(filePath, targetFilePath, backupFile: false);
 					});
 				}
-				else
-				{
-					var csProjArrange = CreateCsProjArrange(stickyElementNames, keepOrderElementNames, sortAttributes, options);
-					csProjArrange.Arrange(inputFile, outputFile ?? inputFile);
-				}
+				//else
+				//{
+				//	var csProjArrange = CreateCsProjArrange(stickyElementNames, keepOrderElementNames, sortAttributes, options);
+				//	csProjArrange.Arrange(inputFile, outputFile ?? inputFile);
+				//}
 			}
 			catch (Exception e)
 			{

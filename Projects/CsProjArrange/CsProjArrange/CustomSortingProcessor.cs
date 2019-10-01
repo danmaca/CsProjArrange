@@ -18,24 +18,25 @@ namespace CsProjArrange
 			"*.projitems",
 		};
 
-		public void ProcessSorting(string rootSearchDir, bool searchRecursive, bool updateRecursive, bool usePredefinedFolders,
-			Action<string, CsProjArrange.ArrangeOptions> runSorting)
+		public void ProcessSorting(string rootSearchDir, bool xamarinOnly, bool checkoutedOnly, bool usePredefinedFolders,
+			Action<string, string, CsProjArrange.ArrangeOptions> runSorting)
 		{
 			//Console.WriteLine(rootSearchDir);
 			//Console.WriteLine(searchRecursive);
 			//Console.WriteLine(updateRecursive);
 			//Console.WriteLine(usePredefinedFolders);
 			//return;
+
+			string[] searchFolders;
 			if (usePredefinedFolders)
 			{
-				string[] searchFolders;
 				if (rootSearchDir.StartsWith(@"D:\Projects\"))
 				{
 					searchFolders = new[]
 					{
 						@"D:\Projects\Lara\Lara-Xamarin",
 						@"D:\Projects\Lara_Sync\Lara_Sync-Xamarin",
-						@"D:\Projects\Nestle_Impuls_limiGo\Nestle_Impuls_limiGo-Xamarin",
+						@"D:\Projects\Nestle_Impuls_limiGo\Nestle_Impuls_limiGo",
 						@"D:\Projects\SFA\SFA-Xamarin",
 					};
 				}
@@ -50,16 +51,16 @@ namespace CsProjArrange
 				}
 				else
 					throw new ArgumentOutOfRangeException();
-
-				foreach (string searchFolder in searchFolders)
-					this.ProcessSorting(searchFolder, searchRecursive, updateRecursive, runSorting);
 			}
 			else
-				this.ProcessSorting(rootSearchDir, searchRecursive, updateRecursive, runSorting);
+				searchFolders = new[] { rootSearchDir };
+
+			foreach (string searchFolder in searchFolders)
+				this.ProcessSorting(searchFolder, xamarinOnly, checkoutedOnly, runSorting);
 		}
 
-		public void ProcessSorting(string rootSearchDir, bool searchRecursive, bool updateRecursive,
-			Action<string, CsProjArrange.ArrangeOptions> runSorting)
+		public void ProcessSorting(string rootSearchDir, bool xamarinOnly, bool checkoutedOnly,
+			Action<string, string, CsProjArrange.ArrangeOptions> runSorting)
 		{
 			string path = Path.GetDirectoryName(rootSearchDir);
 			_rootWorkspaceDir = path;
@@ -70,12 +71,13 @@ namespace CsProjArrange
 			foreach (var fileExt in _useExtensions)
 				filesToProcess.AddRange(Directory.GetFiles(rootSearchDir, fileExt, SearchOption.AllDirectories));
 
+			string tempFilePath = Path.GetTempFileName();
+
 			foreach (var filePath in filesToProcess)
 			{
-				if (updateRecursive)
+				if (xamarinOnly)
 				{
-					if (filePath.Contains("Xam")
-						&& filePath.Contains(".Client") == false
+					if (filePath.Contains(".Client") == false
 						&& filePath.Contains(".Android") == false
 						&& filePath.Contains(".iOS") == false
 						&& filePath.Contains(".UWP") == false)
@@ -83,7 +85,13 @@ namespace CsProjArrange
 				}
 
 				bool isReadOnlyFile = File.GetAttributes(filePath).HasFlag(FileAttributes.ReadOnly);
-				if (updateRecursive && isReadOnlyFile)
+				if (checkoutedOnly && isReadOnlyFile)
+					continue;
+
+				runSorting(filePath, tempFilePath, CsProjArrange.ArrangeOptions.CombineRootElements | CsProjArrange.ArrangeOptions.SortRootElements);
+
+				byte[] tempFileContent = File.ReadAllBytes(tempFilePath);
+				if (File.ReadAllBytes(filePath).SequenceEqual(tempFileContent))
 					continue;
 
 				if (isReadOnlyFile)
@@ -95,7 +103,7 @@ namespace CsProjArrange
 					process.WaitForExit();
 				}
 
-				runSorting(filePath, CsProjArrange.ArrangeOptions.CombineRootElements | CsProjArrange.ArrangeOptions.SortRootElements);
+				File.WriteAllBytes(filePath, tempFileContent);
 			}
 		}
 	}
