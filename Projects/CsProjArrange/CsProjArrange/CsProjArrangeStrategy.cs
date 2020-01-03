@@ -23,7 +23,6 @@ namespace CsProjArrange
          "Task",
 			"PropertyGroup",
 			"ItemGroup",
-			"Target",
          // Secondary: PropertyGroup
          "Configuration",
 			"Platform",
@@ -38,6 +37,7 @@ namespace CsProjArrange
          "When",
 			"Otherwise",
 			"ItemGroup_Folder",
+			"Target",
 			"PropertyGroup_VSToolsPath",
 			"Import",
 			"ProjectExtensions",
