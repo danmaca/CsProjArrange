@@ -7,114 +7,121 @@ using System.Xml.Linq;
 
 namespace CsProjArrange
 {
-    /// <summary>
-    /// Strategy for arranging a Visual Studio csproj file
-    /// </summary>
-    public class CsProjArrangeStrategy
-    {
-        private const string DefaultMarker = "[Default]";
-        private const string NameOfFakeNodeForLastComment = "\x03A9";
+	/// <summary>
+	/// Strategy for arranging a Visual Studio csproj file
+	/// </summary>
+	public class CsProjArrangeStrategy
+	{
+		private const string DefaultMarker = "[Default]";
+		private const string NameOfFakeNodeForLastComment = "\x03A9";
 
 
-        private readonly string[] _defaultStickyElementNames =
-        {
-            // Primary
-            "Task",
-            "PropertyGroup",
-            "ItemGroup",
-            "Target",
-            // Secondary: PropertyGroup
-            "Configuration",
-            "Platform",
-            // Secondary: ItemGroup
-            "ProjectReference",
-            "Reference",
-            "Compile",
-            "Folder",
-            "Content",
-            "None",
-            // Secondary: Choose
-            "When",
-            "Otherwise",
-        };
+		private readonly string[] _defaultStickyElementNames =
+		{
+			@"Import:Project=$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props",
+         // Primary
+         "Task",
+			"PropertyGroup",
+			"ItemGroup",
+			"Target",
+         // Secondary: PropertyGroup
+         "Configuration",
+			"Platform",
+         // Secondary: ItemGroup
+         "ProjectReference",
+			"Reference",
+			"Compile",
+			"Folder",
+			"Content",
+			"None",
+         // Secondary: Choose
+         "When",
+			"Otherwise",
+			"ItemGroup_Folder",
+			"PropertyGroup_VSToolsPath",
+			"Import",
+			"ProjectExtensions",
+			"PropertyGroup_PostBuildEvent",
+		  };
 
-        private readonly string[] _defaultKeepOrderElementNames =
-        {
-            "Target",
-        };
+		private readonly string[] _defaultKeepOrderElementNames =
+		{
+				"Target",
+				"WebProjectProperties",
+		  };
 
-        private readonly string[] _defaultSortAttributes =
-        {
-            "Include",
-        };
+		private readonly string[] _defaultSortAttributes =
+		{
+				"Include",
+		  };
 
-        private AttributeKeyComparer _attributeKeyComparer;
-        private NodeNameComparer _nodeNameComparer;
-        private readonly List<string> _stickyElementNames;
-        private readonly List<string> _keepOrderElementNames;
-        private readonly List<string> _sortAttributes;
-        private readonly CsProjArrange.ArrangeOptions _options;
+		private AttributeKeyComparer _attributeKeyComparer;
+		private NodeNameComparer _nodeNameComparer;
+		private readonly List<string> _stickyElementNames;
+		private readonly List<string> _keepOrderElementNames;
+		private readonly List<string> _sortAttributes;
+		private readonly CsProjArrange.ArrangeOptions _options;
 
-        public CsProjArrangeStrategy(IEnumerable<string> stickyElementNames, IEnumerable<string> keepOrderElementNames,
-            IEnumerable<string> sortAttributes, CsProjArrange.ArrangeOptions options)
-        {
-            _stickyElementNames = (stickyElementNames ?? new[] {DefaultMarker}).ToList();
-            ReplaceDefaultMarker(_stickyElementNames, _defaultStickyElementNames);
-            _keepOrderElementNames = (keepOrderElementNames ?? new[] { DefaultMarker }).ToList();
-            ReplaceDefaultMarker(_keepOrderElementNames, _defaultKeepOrderElementNames);
-            _sortAttributes = (sortAttributes ?? new[] {DefaultMarker}).ToList();
-            ReplaceDefaultMarker(_sortAttributes, _defaultSortAttributes);
-            _options = options;
-        }
+		public CsProjArrangeStrategy(IEnumerable<string> stickyElementNames, IEnumerable<string> keepOrderElementNames,
+			 IEnumerable<string> sortAttributes, CsProjArrange.ArrangeOptions options)
+		{
+			_stickyElementNames = (stickyElementNames ?? new[] { DefaultMarker }).ToList();
+			ReplaceDefaultMarker(_stickyElementNames, _defaultStickyElementNames);
+			_keepOrderElementNames = (keepOrderElementNames ?? new[] { DefaultMarker }).ToList();
+			ReplaceDefaultMarker(_keepOrderElementNames, _defaultKeepOrderElementNames);
+			_sortAttributes = (sortAttributes ?? new[] { DefaultMarker }).ToList();
+			ReplaceDefaultMarker(_sortAttributes, _defaultSortAttributes);
+			_options = options;
+		}
 
-        private static void ReplaceDefaultMarker(List<string> collection, IList<string> defaultValues)
-        {
-            if (collection.Contains(DefaultMarker))
-            {
-                collection.Remove(DefaultMarker);
-                collection.AddRange(defaultValues);
-            }
-        }
+		private static void ReplaceDefaultMarker(List<string> collection, IList<string> defaultValues)
+		{
+			if (collection.Contains(DefaultMarker))
+			{
+				collection.Remove(DefaultMarker);
+				collection.AddRange(defaultValues);
+			}
+		}
 
-        private void ArrangeElementByNameThenAttributes(XElement element)
-        {
-            if (!_keepOrderElementNames.Contains(element.Name.LocalName))
-            {
-                element.ReplaceNodes(
-                    element.Nodes()
-                        .OrderBy(x => x, _nodeNameComparer)
-                        .ThenBy(x => x.NodeType == XmlNodeType.Element ? ((XElement) x).Attributes() : null,
-                            _attributeKeyComparer)
-                    );
-            }
+		private void ArrangeElementByNameThenAttributes(XElement element)
+		{
+			if (!_keepOrderElementNames.Contains(element.Name.LocalName))
+			{
+				element.ReplaceNodes(
+					 element.Nodes()
+						  .OrderBy(x => x, _nodeNameComparer)
+						  .ThenBy(x => x.NodeType == XmlNodeType.Element ? ((XElement)x).Attributes() : null,
+								_attributeKeyComparer)
+					 );
+			}
 
-            // Arrange child elements.
-            foreach (var child in element.Elements())
-            {
-                ArrangeElementByNameThenAttributes(child);
-            }
-        }
+			// Arrange child elements.
+			foreach (var child in element.Elements())
+			{
+				ArrangeElementByNameThenAttributes(child);
+			}
+		}
 
-        public void Arrange(XDocument input)
-        {
-				new InputDataModificator().ModifyInputData(input);
+		public void Arrange(XDocument input)
+		{
+			new InputDataModificator().ModifyInputData(input);
 
-				_attributeKeyComparer = CreateAttributeKeyComparer(_sortAttributes);
-            _nodeNameComparer = new NodeNameComparer(_stickyElementNames);
+			_attributeKeyComparer = CreateAttributeKeyComparer(_sortAttributes);
+			_nodeNameComparer = new NodeNameComparer(_stickyElementNames);
 
-            input.Root.ReplaceNodes(
-                UnfoldSections(
-                    FoldSections(input.Root.Nodes())
-                        .OrderBy(x => x.OptionSection ? 2 : 1)
-                    )
-                );
-        }
+			input.Root.ReplaceNodes(
+				 UnfoldSections(
+					  FoldSections(input.Root.Nodes().Where(obj => !(obj is XComment)))
+							.OrderBy(x => x.OptionSection ? 2 : 1)
+					  )
+				 );
+		}
 
 
-        private void ArrangeSection(XNodeSection section, CsProjArrange.ArrangeOptions options)
-        {
+		private void ArrangeSection(XNodeSection section, CsProjArrange.ArrangeOptions options)
+		{
 
-            CombineRootElementsAndSort(section, options);
+			CombineRootElementsAndSort(section, options);
 
             if (options.HasFlag(CsProjArrange.ArrangeOptions.SplitItemGroups)) {
                 SplitItemGroups(section, _stickyElementNames);
@@ -172,76 +179,76 @@ namespace CsProjArrange
         }
 
         private class XNodeSection
-        {
-            public IList<XNode> Nodes
-            {
-                get;
-                set;
-            }
+		{
+			public IList<XNode> Nodes
+			{
+				get;
+				set;
+			}
 
-            public XComment OpenComment
-            {
-                get;
-                set;
-            }
+			public XComment OpenComment
+			{
+				get;
+				set;
+			}
 
-            public XComment CloseComment
-            {
-                get;
-                set;
-            }
+			public XComment CloseComment
+			{
+				get;
+				set;
+			}
 
-            public CsProjArrange.ArrangeOptions? Options
-            {
-                get;
-                set;
-            }
+			public CsProjArrange.ArrangeOptions? Options
+			{
+				get;
+				set;
+			}
 
-            public bool OptionSection
-            {
-                get;
-                set;
-            }
+			public bool OptionSection
+			{
+				get;
+				set;
+			}
 
-            public XNodeSection()
-            {
-                Nodes = new List<XNode>();
-            }
-        }
+			public XNodeSection()
+			{
+				Nodes = new List<XNode>();
+			}
+		}
 
-        private IEnumerable<XElementsWithComments> FoldComments(IEnumerable<XNode> nodes)
-        {
-            XElementsWithComments current = new XElementsWithComments();
-            foreach (var node in nodes)
-            {
-                switch (node.NodeType)
-                {
-                    case XmlNodeType.Comment:
-                        current.Comments.Add(node as XComment);
-                        break;
-                    case XmlNodeType.Element:
-                        current.Element = node as XElement;
-                        yield return current;
-                        current = new XElementsWithComments();
-                        break;
-                }
-            }
+		private IEnumerable<XElementsWithComments> FoldComments(IEnumerable<XNode> nodes)
+		{
+			XElementsWithComments current = new XElementsWithComments();
+			foreach (var node in nodes)
+			{
+				switch (node.NodeType)
+				{
+					case XmlNodeType.Comment:
+						current.Comments.Add(node as XComment);
+						break;
+					case XmlNodeType.Element:
+						current.Element = node as XElement;
+						yield return current;
+						current = new XElementsWithComments();
+						break;
+				}
+			}
 
-            // fold last standing comment into fake element
-            if (current.Comments.Any())
-            {
-                current.Element = new XElement(NameOfFakeNodeForLastComment);
-                yield return current;
-            }
-        }
+			// fold last standing comment into fake element
+			if (current.Comments.Any())
+			{
+				current.Element = new XElement(NameOfFakeNodeForLastComment);
+				yield return current;
+			}
+		}
 
-        private string _optionsOpenCommentRegexString = string.Format(@"^(\s*Options:\s*)({0}(,({0}))*)\s*$", string.Join("|", ((CsProjArrange.ArrangeOptions[])Enum.GetValues(typeof(CsProjArrange.ArrangeOptions))).Select(x => x.ToString())));
-        private string _optionsCloseCommentRegexString = @"^(\s*/Options\s*)$";
-        private IEnumerable<XNodeSection> FoldSections(IEnumerable<XNode> nodes)
-        {
-            XNodeSection none = new XNodeSection();
-            XNodeSection current = none;
-            bool section = false;
+		private string _optionsOpenCommentRegexString = string.Format(@"^(\s*Options:\s*)({0}(,({0}))*)\s*$", string.Join("|", ((CsProjArrange.ArrangeOptions[])Enum.GetValues(typeof(CsProjArrange.ArrangeOptions))).Select(x => x.ToString())));
+		private string _optionsCloseCommentRegexString = @"^(\s*/Options\s*)$";
+		private IEnumerable<XNodeSection> FoldSections(IEnumerable<XNode> nodes)
+		{
+			XNodeSection none = new XNodeSection();
+			XNodeSection current = none;
+			bool section = false;
             foreach (var node in nodes) {
                 switch (node.NodeType) {
                     case XmlNodeType.Comment:
@@ -325,76 +332,90 @@ namespace CsProjArrange
                         .OrderBy(
                             x =>
                                 stickyElementNames.IndexOf(x.LocalName) == -1
-                                    ? int.MaxValue
-                                    : stickyElementNames.IndexOf(x.LocalName))
-                        .ThenBy(x => x.LocalName)
-                    ;
-                // Split into multiple item groups if there are multiple types included.
-                if (uniqueTypes.Count() > 1)
-                {
-                    var firstType = uniqueTypes.First();
-                    var restTypes = uniqueTypes.Skip(1).Reverse();
-                    foreach (var type in restTypes)
-                    {
-                        var newElement = new XElement(@group.Name, @group.Attributes(), @group.Elements(type));
-                        // Insert node after.
-                        section.Nodes.Insert(section.Nodes.IndexOf(@group) + 1, newElement);
-                    }
-                    @group.ReplaceNodes(@group.Elements(firstType));
-                }
-            }
-        }
+										  ? int.MaxValue
+										  : stickyElementNames.IndexOf(x.LocalName))
+						  .ThenBy(x => x.LocalName)
+					 ;
+				// Split into multiple item groups if there are multiple types included.
+				if (uniqueTypes.Count() > 1)
+				{
+					var firstType = uniqueTypes.First();
+					var restTypes = uniqueTypes.Skip(1).Reverse();
+					foreach (var type in restTypes)
+					{
+						var newElement = new XElement(@group.Name, @group.Attributes(), @group.Elements(type));
+						// Insert node after.
+						section.Nodes.Insert(section.Nodes.IndexOf(@group) + 1, newElement);
+					}
+					@group.ReplaceNodes(@group.Elements(firstType));
+				}
+			}
+		}
 
-        private void CombineRootElementsAndSort(XNodeSection section, CsProjArrange.ArrangeOptions options)
-        {
-            var combineGroups =
-                section.Nodes
-                    .Where(x => x is XElement)
-                    .Cast<XElement>()
-                    .GroupBy(
-                        x =>
-                            new CombineGroups
-                            {
-                                Name = x.Name.Namespace.ToString() + ":" + x.Name.LocalName,
-                                Attributes =
-                                    string.Join(Environment.NewLine,
-                                        x.Attributes()
-                                            .Select(y => y.Name.Namespace.ToString() + ":" + y.Name.LocalName + ":" + y.Value)),
-                            }
-                    );
+		private void CombineRootElementsAndSort(XNodeSection section, CsProjArrange.ArrangeOptions options)
+		{
+			var combineGroups =
+				 section.Nodes
+					  .Where(x => x is XElement)
+					  .Cast<XElement>()
+					  .GroupBy(
+							x =>
+							{
+								var combGroup = new CombineGroups
+								{
+									Name = x.Name.Namespace.ToString() + ":" + x.Name.LocalName,
+									Attributes =
+										  string.Join(Environment.NewLine,
+												x.Attributes()
+													 .Select(y => y.Name.Namespace.ToString() + ":" + y.Name.LocalName + ":" + y.Value)),
+								};
 
-            foreach (var elementGroup in combineGroups)
-            {
-                if (options.HasFlag(CsProjArrange.ArrangeOptions.CombineRootElements))
-                {
-                    CombineIdenticalRootElements(section, elementGroup);
-                }
+								combGroup.Name += this.TryAddSubNodeSuffix(x, "PropertyGroup", "VSToolsPath");
+								combGroup.Name += this.TryAddSubNodeSuffix(x, "PropertyGroup", "PostBuildEvent");
+								combGroup.Name += this.TryAddSubNodeSuffix(x, "ItemGroup", "Folder");
 
-                ArrangeAllElementsInGroup(elementGroup);
-            }
-        }
+								return combGroup;
+							});
 
-        private void ArrangeAllElementsInGroup(IGrouping<CombineGroups, XElement> elementGroup)
-        {
-            foreach (var element in elementGroup)
-            {
-                ArrangeElementByNameThenAttributes(element);
-            }
-        }
+			foreach (var elementGroup in combineGroups)
+			{
+				if (options.HasFlag(CsProjArrange.ArrangeOptions.CombineRootElements))
+				{
+					CombineIdenticalRootElements(section, elementGroup);
+				}
 
-        private void CombineIdenticalRootElements(XNodeSection section, IGrouping<CombineGroups, XElement> elementGroup)
-        {
-            XElement first = elementGroup.First();
-            // Combine multiple elements if they have the same name and attributes.
-            if (elementGroup.Count() > 1)
-            {
-                var restGroup = elementGroup.Skip(1);
-                first.Add(restGroup.SelectMany(x => x.Elements()));
-                foreach (var rest in restGroup)
-                {
-                    section.Nodes.Remove(rest);
-                }
-            }
-        }
-    }
+				ArrangeAllElementsInGroup(elementGroup);
+			}
+		}
+
+		private string TryAddSubNodeSuffix(XElement element, string groupName, string subNodeName)
+		{
+			if (element.Name.LocalName == groupName && element.Nodes().OfType<XElement>().Any(obj => obj.Name.LocalName == subNodeName))
+				return subNodeName;
+			return string.Empty;
+		}
+
+		private void ArrangeAllElementsInGroup(IGrouping<CombineGroups, XElement> elementGroup)
+		{
+			foreach (var element in elementGroup)
+			{
+				ArrangeElementByNameThenAttributes(element);
+			}
+		}
+
+		private void CombineIdenticalRootElements(XNodeSection section, IGrouping<CombineGroups, XElement> elementGroup)
+		{
+			XElement first = elementGroup.First();
+			// Combine multiple elements if they have the same name and attributes.
+			if (elementGroup.Count() > 1)
+			{
+				var restGroup = elementGroup.Skip(1);
+				first.Add(restGroup.SelectMany(x => x.Elements()));
+				foreach (var rest in restGroup)
+				{
+					section.Nodes.Remove(rest);
+				}
+			}
+		}
+	}
 }
